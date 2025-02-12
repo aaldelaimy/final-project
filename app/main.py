@@ -34,7 +34,7 @@ async def get_sensor_count(sensor_type: str):
     
     cursor.close()
     conn.close()
-    return {"count": count}
+    return count
 
 @app.get("/api/{sensor_type}")
 async def get_sensor_data(
