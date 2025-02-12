@@ -49,13 +49,11 @@ async def get_sensor_data(
     conn = database.get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    query = f"SELECT * FROM {sensor_type} WHERE 1=1"
+    query = f"SELECT *, DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%s') as formatted_timestamp FROM {sensor_type} WHERE 1=1"
     if start_date:
-        # Convert ISO format to MySQL format
         formatted_start = start_date.replace('T', ' ')
         query += f" AND timestamp >= '{formatted_start}'"
     if end_date:
-        # Convert ISO format to MySQL format
         formatted_end = end_date.replace('T', ' ')
         query += f" AND timestamp <= '{formatted_end}'"
     if order_by:
@@ -63,19 +61,17 @@ async def get_sensor_data(
             raise HTTPException(status_code=400, detail="Invalid order-by parameter")
         query += f" ORDER BY {order_by}"
     
-    try:
-        cursor.execute(query)
-        result = cursor.fetchall()
-        
-        # Convert MySQL datetime to ISO format in the response
-        for row in result:
-            if 'timestamp' in row:
-                row['timestamp'] = row['timestamp'].strftime('%Y-%m-%dT%H:%M:%S')
-        
-        return result
-    finally:
-        cursor.close()
-        conn.close()
+    cursor.execute(query)
+    result = cursor.fetchall()
+    
+    # Convert the results to use the formatted timestamp
+    for row in result:
+        row['timestamp'] = row['formatted_timestamp']
+        del row['formatted_timestamp']
+    
+    cursor.close()
+    conn.close()
+    return result
 
 @app.post("/api/{sensor_type}")
 async def create_sensor_data(sensor_type: str, data: SensorData):
@@ -107,7 +103,7 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
     conn = database.get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    cursor.execute(f"SELECT * FROM {sensor_type} WHERE id = %s", (id,))
+    cursor.execute(f"SELECT *, DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%s') as formatted_timestamp FROM {sensor_type} WHERE id = %s", (id,))
     result = cursor.fetchone()
     
     cursor.close()
@@ -116,9 +112,9 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
     if not result:
         raise HTTPException(status_code=404, detail="Data not found")
     
-    # Convert timestamp to ISO format
-    if result and 'timestamp' in result:
-        result['timestamp'] = result['timestamp'].strftime('%Y-%m-%dT%H:%M:%S')
+    # Use the formatted timestamp
+    result['timestamp'] = result['formatted_timestamp']
+    del result['formatted_timestamp']
     
     return result
 
