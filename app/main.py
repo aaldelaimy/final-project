@@ -51,9 +51,15 @@ async def get_sensor_data(
     
     query = f"SELECT * FROM {sensor_type} WHERE 1=1"
     if start_date:
-        query += f" AND timestamp >= STR_TO_DATE('{start_date}', '%Y-%m-%dT%H:%i:%s')"
+        if 'T' in start_date:
+            query += f" AND timestamp >= STR_TO_DATE('{start_date}', '%Y-%m-%dT%H:%i:%s')"
+        else:
+            query += f" AND timestamp >= STR_TO_DATE('{start_date}', '%Y-%m-%d %H:%i:%s')"
     if end_date:
-        query += f" AND timestamp <= STR_TO_DATE('{end_date}', '%Y-%m-%dT%H:%i:%s')"
+        if 'T' in end_date:
+            query += f" AND timestamp <= STR_TO_DATE('{end_date}', '%Y-%m-%dT%H:%i:%s')"
+        else:
+            query += f" AND timestamp <= STR_TO_DATE('{end_date}', '%Y-%m-%d %H:%i:%s')"
     if order_by:
         if order_by not in ['value', 'timestamp']:
             raise HTTPException(status_code=400, detail="Invalid order-by parameter")
