@@ -49,16 +49,21 @@ async def get_sensor_data(
     conn = database.get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    query = f"SELECT * FROM {sensor_type} WHERE 1=1"
+    query = f"""
+        SELECT *, 
+        DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%s') as formatted_timestamp 
+        FROM {sensor_type} 
+        WHERE 1=1
+    """
     params = []
     
     if start_date:
-        query += " AND timestamp >= %s"
-        params.append(start_date.replace('T', ' '))
+        query += " AND timestamp >= STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%s')"
+        params.append(start_date)
     
     if end_date:
-        query += " AND timestamp <= %s"
-        params.append(end_date.replace('T', ' '))
+        query += " AND timestamp <= STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%s')"
+        params.append(end_date)
     
     if order_by:
         if order_by not in ['value', 'timestamp']:
@@ -68,10 +73,10 @@ async def get_sensor_data(
     cursor.execute(query, params)
     result = cursor.fetchall()
     
-    # Convert timestamps to strings without parsing
+    # Use the formatted timestamp
     for row in result:
-        if isinstance(row.get('timestamp'), datetime):
-            row['timestamp'] = row['timestamp'].isoformat(sep='T')
+        row['timestamp'] = row['formatted_timestamp']
+        del row['formatted_timestamp']
     
     cursor.close()
     conn.close()
@@ -85,12 +90,15 @@ async def create_sensor_data(sensor_type: str, data: SensorData):
     conn = database.get_db_connection()
     cursor = conn.cursor()
     
-    timestamp = data.timestamp or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    if timestamp and 'T' in timestamp:
-        timestamp = timestamp.replace('T', ' ')
-    
-    query = f"INSERT INTO {sensor_type} (value, unit, timestamp) VALUES (%s, %s, %s)"
-    cursor.execute(query, (data.value, data.unit, timestamp))
+    if data.timestamp:
+        query = f"""
+            INSERT INTO {sensor_type} (value, unit, timestamp) 
+            VALUES (%s, %s, STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%s'))
+        """
+        cursor.execute(query, (data.value, data.unit, data.timestamp))
+    else:
+        query = f"INSERT INTO {sensor_type} (value, unit, timestamp) VALUES (%s, %s, NOW())"
+        cursor.execute(query, (data.value, data.unit))
     
     new_id = cursor.lastrowid
     conn.commit()
@@ -107,7 +115,13 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
     conn = database.get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    cursor.execute(f"SELECT * FROM {sensor_type} WHERE id = %s", (id,))
+    query = f"""
+        SELECT *,
+        DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%s') as formatted_timestamp
+        FROM {sensor_type}
+        WHERE id = %s
+    """
+    cursor.execute(query, (id,))
     result = cursor.fetchone()
     
     if not result:
@@ -115,9 +129,9 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
         conn.close()
         raise HTTPException(status_code=404, detail="Data not found")
     
-    # Convert timestamp to ISO format
-    if isinstance(result.get('timestamp'), datetime):
-        result['timestamp'] = result['timestamp'].isoformat(sep='T')
+    # Use the formatted timestamp
+    result['timestamp'] = result['formatted_timestamp']
+    del result['formatted_timestamp']
     
     cursor.close()
     conn.close()
@@ -140,9 +154,8 @@ async def update_sensor_data(sensor_type: str, id: int, data: SensorDataUpdate):
         updates.append("unit = %s")
         values.append(data.unit)
     if data.timestamp is not None:
-        timestamp = data.timestamp.replace('T', ' ')
-        updates.append("timestamp = %s")
-        values.append(timestamp)
+        updates.append("timestamp = STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%s')")
+        values.append(data.timestamp)
     
     if not updates:
         raise HTTPException(status_code=400, detail="No update data provided")
