@@ -51,25 +51,31 @@ async def get_sensor_data(
     
     query = f"SELECT * FROM {sensor_type} WHERE 1=1"
     if start_date:
-        if 'T' in start_date:
-            query += f" AND timestamp >= STR_TO_DATE('{start_date}', '%Y-%m-%dT%H:%i:%s')"
-        else:
-            query += f" AND timestamp >= STR_TO_DATE('{start_date}', '%Y-%m-%d %H:%i:%s')"
+        # Convert ISO format to MySQL format
+        formatted_start = start_date.replace('T', ' ')
+        query += f" AND timestamp >= '{formatted_start}'"
     if end_date:
-        if 'T' in end_date:
-            query += f" AND timestamp <= STR_TO_DATE('{end_date}', '%Y-%m-%dT%H:%i:%s')"
-        else:
-            query += f" AND timestamp <= STR_TO_DATE('{end_date}', '%Y-%m-%d %H:%i:%s')"
+        # Convert ISO format to MySQL format
+        formatted_end = end_date.replace('T', ' ')
+        query += f" AND timestamp <= '{formatted_end}'"
     if order_by:
         if order_by not in ['value', 'timestamp']:
             raise HTTPException(status_code=400, detail="Invalid order-by parameter")
         query += f" ORDER BY {order_by}"
     
-    cursor.execute(query)
-    result = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return result
+    try:
+        cursor.execute(query)
+        result = cursor.fetchall()
+        
+        # Convert MySQL datetime to ISO format in the response
+        for row in result:
+            if 'timestamp' in row:
+                row['timestamp'] = row['timestamp'].strftime('%Y-%m-%dT%H:%M:%S')
+        
+        return result
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.post("/api/{sensor_type}")
 async def create_sensor_data(sensor_type: str, data: SensorData):
@@ -80,6 +86,9 @@ async def create_sensor_data(sensor_type: str, data: SensorData):
     cursor = conn.cursor()
     
     timestamp = data.timestamp or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if timestamp and 'T' in timestamp:
+        timestamp = timestamp.replace('T', ' ')
+    
     query = f"INSERT INTO {sensor_type} (value, unit, timestamp) VALUES (%s, %s, %s)"
     cursor.execute(query, (data.value, data.unit, timestamp))
     
@@ -106,6 +115,11 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
     
     if not result:
         raise HTTPException(status_code=404, detail="Data not found")
+    
+    # Convert timestamp to ISO format
+    if result and 'timestamp' in result:
+        result['timestamp'] = result['timestamp'].strftime('%Y-%m-%dT%H:%M:%S')
+    
     return result
 
 @app.put("/api/{sensor_type}/{id}")
@@ -125,8 +139,11 @@ async def update_sensor_data(sensor_type: str, id: int, data: SensorDataUpdate):
         updates.append("unit = %s")
         values.append(data.unit)
     if data.timestamp is not None:
+        timestamp = data.timestamp
+        if 'T' in timestamp:
+            timestamp = timestamp.replace('T', ' ')
         updates.append("timestamp = %s")
-        values.append(data.timestamp)
+        values.append(timestamp)
     
     if not updates:
         raise HTTPException(status_code=400, detail="No update data provided")
