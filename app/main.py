@@ -52,17 +52,17 @@ async def get_sensor_data(
     query = f"SELECT * FROM {sensor_type} WHERE 1=1"
     if start_date:
         try:
-            formatted_start = start_date
-            if 'T' in start_date:
-                formatted_start = start_date.replace('T', ' ')
+            # Parse the ISO format date and convert to MySQL format
+            dt = datetime.strptime(start_date.replace('T', ' '), '%Y-%m-%d %H:%M:%S')
+            formatted_start = dt.strftime('%Y-%m-%d %H:%M:%S')
             query += f" AND timestamp >= '{formatted_start}'"
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid start date format")
     if end_date:
         try:
-            formatted_end = end_date
-            if 'T' in end_date:
-                formatted_end = end_date.replace('T', ' ')
+            # Parse the ISO format date and convert to MySQL format
+            dt = datetime.strptime(end_date.replace('T', ' '), '%Y-%m-%d %H:%M:%S')
+            formatted_end = dt.strftime('%Y-%m-%d %H:%M:%S')
             query += f" AND timestamp <= '{formatted_end}'"
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid end date format")
