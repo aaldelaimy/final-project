@@ -49,7 +49,7 @@ async def get_sensor_data(
     conn = database.get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    query = f"SELECT *, DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%s') as formatted_timestamp FROM {sensor_type} WHERE 1=1"
+    query = f"SELECT * FROM {sensor_type} WHERE 1=1"
     if start_date:
         formatted_start = start_date.replace('T', ' ')
         query += f" AND timestamp >= '{formatted_start}'"
@@ -64,10 +64,10 @@ async def get_sensor_data(
     cursor.execute(query)
     result = cursor.fetchall()
     
-    # Convert the results to use the formatted timestamp
+    # Convert timestamps to ISO format
     for row in result:
-        row['timestamp'] = row['formatted_timestamp']
-        del row['formatted_timestamp']
+        if row.get('timestamp'):
+            row['timestamp'] = row['timestamp'].strftime('%Y-%m-%dT%H:%M:%S')
     
     cursor.close()
     conn.close()
@@ -103,19 +103,20 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
     conn = database.get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    cursor.execute(f"SELECT *, DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%s') as formatted_timestamp FROM {sensor_type} WHERE id = %s", (id,))
+    cursor.execute(f"SELECT * FROM {sensor_type} WHERE id = %s", (id,))
     result = cursor.fetchone()
+    
+    if not result:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="Data not found")
+    
+    # Convert timestamp to ISO format
+    if result.get('timestamp'):
+        result['timestamp'] = result['timestamp'].strftime('%Y-%m-%dT%H:%M:%S')
     
     cursor.close()
     conn.close()
-    
-    if not result:
-        raise HTTPException(status_code=404, detail="Data not found")
-    
-    # Use the formatted timestamp
-    result['timestamp'] = result['formatted_timestamp']
-    del result['formatted_timestamp']
-    
     return result
 
 @app.put("/api/{sensor_type}/{id}")
