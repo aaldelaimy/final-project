@@ -53,22 +53,12 @@ async def get_sensor_data(
     params = []
     
     if start_date:
-        try:
-            # Parse the ISO format date
-            start_dt = datetime.fromisoformat(start_date.replace('Z', ''))
-            query += " AND timestamp >= %s"
-            params.append(start_dt)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid start date format")
+        query += " AND timestamp >= %s"
+        params.append(start_date.replace('T', ' '))
     
     if end_date:
-        try:
-            # Parse the ISO format date
-            end_dt = datetime.fromisoformat(end_date.replace('Z', ''))
-            query += " AND timestamp <= %s"
-            params.append(end_dt)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid end date format")
+        query += " AND timestamp <= %s"
+        params.append(end_date.replace('T', ' '))
     
     if order_by:
         if order_by not in ['value', 'timestamp']:
@@ -78,10 +68,10 @@ async def get_sensor_data(
     cursor.execute(query, params)
     result = cursor.fetchall()
     
-    # Convert timestamps to ISO format in the response
+    # Convert timestamps to strings without parsing
     for row in result:
-        if row.get('timestamp'):
-            row['timestamp'] = row['timestamp'].strftime('%Y-%m-%dT%H:%M:%S')
+        if isinstance(row.get('timestamp'), datetime):
+            row['timestamp'] = row['timestamp'].isoformat(sep='T')
     
     cursor.close()
     conn.close()
@@ -95,13 +85,9 @@ async def create_sensor_data(sensor_type: str, data: SensorData):
     conn = database.get_db_connection()
     cursor = conn.cursor()
     
-    try:
-        if data.timestamp:
-            timestamp = datetime.fromisoformat(data.timestamp.replace('Z', ''))
-        else:
-            timestamp = datetime.now()
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid timestamp format")
+    timestamp = data.timestamp or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if timestamp and 'T' in timestamp:
+        timestamp = timestamp.replace('T', ' ')
     
     query = f"INSERT INTO {sensor_type} (value, unit, timestamp) VALUES (%s, %s, %s)"
     cursor.execute(query, (data.value, data.unit, timestamp))
@@ -130,8 +116,8 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
         raise HTTPException(status_code=404, detail="Data not found")
     
     # Convert timestamp to ISO format
-    if result.get('timestamp'):
-        result['timestamp'] = result['timestamp'].strftime('%Y-%m-%dT%H:%M:%S')
+    if isinstance(result.get('timestamp'), datetime):
+        result['timestamp'] = result['timestamp'].isoformat(sep='T')
     
     cursor.close()
     conn.close()
@@ -154,12 +140,9 @@ async def update_sensor_data(sensor_type: str, id: int, data: SensorDataUpdate):
         updates.append("unit = %s")
         values.append(data.unit)
     if data.timestamp is not None:
-        try:
-            timestamp = datetime.fromisoformat(data.timestamp.replace('Z', ''))
-            updates.append("timestamp = %s")
-            values.append(timestamp)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid timestamp format")
+        timestamp = data.timestamp.replace('T', ' ')
+        updates.append("timestamp = %s")
+        values.append(timestamp)
     
     if not updates:
         raise HTTPException(status_code=400, detail="No update data provided")
