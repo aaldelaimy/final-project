@@ -49,20 +49,23 @@ async def get_sensor_data(
     conn = database.get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    query = f"""
-        SELECT *, 
-        DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%s') as formatted_timestamp 
-        FROM {sensor_type} 
-        WHERE 1=1
-    """
+    query = f"SELECT * FROM {sensor_type} WHERE 1=1"
     params = []
     
     if start_date:
-        query += " AND timestamp >= STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%s')"
+        try:
+            start_date = datetime.fromisoformat(start_date).strftime('%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start-date format")
+        query += " AND timestamp >= %s"
         params.append(start_date)
     
     if end_date:
-        query += " AND timestamp <= STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%s')"
+        try:
+            end_date = datetime.fromisoformat(end_date).strftime('%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end-date format")
+        query += " AND timestamp <= %s"
         params.append(end_date)
     
     if order_by:
@@ -73,10 +76,9 @@ async def get_sensor_data(
     cursor.execute(query, params)
     result = cursor.fetchall()
     
-    # Use the formatted timestamp
     for row in result:
-        row['timestamp'] = row['formatted_timestamp']
-        del row['formatted_timestamp']
+        if isinstance(row.get('timestamp'), datetime):
+            row['timestamp'] = row['timestamp'].isoformat(sep='T')
     
     cursor.close()
     conn.close()
@@ -90,15 +92,12 @@ async def create_sensor_data(sensor_type: str, data: SensorData):
     conn = database.get_db_connection()
     cursor = conn.cursor()
     
-    if data.timestamp:
-        query = f"""
-            INSERT INTO {sensor_type} (value, unit, timestamp) 
-            VALUES (%s, %s, STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%s'))
-        """
-        cursor.execute(query, (data.value, data.unit, data.timestamp))
-    else:
-        query = f"INSERT INTO {sensor_type} (value, unit, timestamp) VALUES (%s, %s, NOW())"
-        cursor.execute(query, (data.value, data.unit))
+    timestamp = data.timestamp or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if timestamp and 'T' in timestamp:
+        timestamp = timestamp.replace('T', ' ')
+    
+    query = f"INSERT INTO {sensor_type} (value, unit, timestamp) VALUES (%s, %s, %s)"
+    cursor.execute(query, (data.value, data.unit, timestamp))
     
     new_id = cursor.lastrowid
     conn.commit()
@@ -115,13 +114,7 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
     conn = database.get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    query = f"""
-        SELECT *,
-        DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%s') as formatted_timestamp
-        FROM {sensor_type}
-        WHERE id = %s
-    """
-    cursor.execute(query, (id,))
+    cursor.execute(f"SELECT * FROM {sensor_type} WHERE id = %s", (id,))
     result = cursor.fetchone()
     
     if not result:
@@ -129,9 +122,8 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
         conn.close()
         raise HTTPException(status_code=404, detail="Data not found")
     
-    # Use the formatted timestamp
-    result['timestamp'] = result['formatted_timestamp']
-    del result['formatted_timestamp']
+    if isinstance(result.get('timestamp'), datetime):
+        result['timestamp'] = result['timestamp'].isoformat(sep='T')
     
     cursor.close()
     conn.close()
@@ -154,8 +146,12 @@ async def update_sensor_data(sensor_type: str, id: int, data: SensorDataUpdate):
         updates.append("unit = %s")
         values.append(data.unit)
     if data.timestamp is not None:
-        updates.append("timestamp = STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%s')")
-        values.append(data.timestamp)
+        try:
+            timestamp = datetime.fromisoformat(data.timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid timestamp format")
+        updates.append("timestamp = %s")
+        values.append(timestamp)
     
     if not updates:
         raise HTTPException(status_code=400, detail="No update data provided")
