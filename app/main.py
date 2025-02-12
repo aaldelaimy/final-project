@@ -21,6 +21,21 @@ class SensorDataUpdate(BaseModel):
 async def startup_event():
     database.create_tables()
 
+@app.get("/api/{sensor_type}/count")
+async def get_sensor_count(sensor_type: str):
+    if sensor_type not in ['temperature', 'humidity', 'light']:
+        raise HTTPException(status_code=404, detail="Sensor type not found")
+    
+    conn = database.get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute(f"SELECT COUNT(*) FROM {sensor_type}")
+    count = cursor.fetchone()[0]
+    
+    cursor.close()
+    conn.close()
+    return {"count": count}
+
 @app.get("/api/{sensor_type}")
 async def get_sensor_data(
     sensor_type: str,
@@ -147,21 +162,6 @@ async def delete_sensor_data(sensor_type: str, id: int):
     cursor.close()
     conn.close()
     return {"message": "Deleted successfully"}
-
-@app.get("/api/{sensor_type}/count")
-async def get_sensor_count(sensor_type: str):
-    if sensor_type not in ['temperature', 'humidity', 'light']:
-        raise HTTPException(status_code=404, detail="Sensor type not found")
-    
-    conn = database.get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute(f"SELECT COUNT(*) FROM {sensor_type}")
-    count = cursor.fetchone()[0]
-    
-    cursor.close()
-    conn.close()
-    return {"count": count}
 
 if __name__ == "__main__":
     uvicorn.run(app="app.main:app", host="0.0.0.0", port=6543, reload=True)
