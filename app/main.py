@@ -51,33 +51,11 @@ async def get_sensor_data(
     
     query = f"SELECT * FROM {sensor_type} WHERE 1=1"
     if start_date:
-        try:
-            # First try to parse with 'T'
-            dt = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
-            formatted_start = dt.strftime('%Y-%m-%d %H:%M:%S')
-            query += f" AND timestamp >= '{formatted_start}'"
-        except ValueError:
-            try:
-                # If that fails, try without 'T'
-                dt = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
-                formatted_start = dt.strftime('%Y-%m-%d %H:%M:%S')
-                query += f" AND timestamp >= '{formatted_start}'"
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid start date format")
+        formatted_start = start_date.replace('T', ' ')
+        query += f" AND timestamp >= '{formatted_start}'"
     if end_date:
-        try:
-            # First try to parse with 'T'
-            dt = datetime.strptime(end_date, '%Y-%m-%dT%H:%M:%S')
-            formatted_end = dt.strftime('%Y-%m-%d %H:%M:%S')
-            query += f" AND timestamp <= '{formatted_end}'"
-        except ValueError:
-            try:
-                # If that fails, try without 'T'
-                dt = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
-                formatted_end = dt.strftime('%Y-%m-%d %H:%M:%S')
-                query += f" AND timestamp <= '{formatted_end}'"
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid end date format")
+        formatted_end = end_date.replace('T', ' ')
+        query += f" AND timestamp <= '{formatted_end}'"
     if order_by:
         if order_by not in ['value', 'timestamp']:
             raise HTTPException(status_code=400, detail="Invalid order-by parameter")
