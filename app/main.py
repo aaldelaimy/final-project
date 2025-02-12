@@ -36,9 +36,17 @@ async def get_sensor_data(
     
     query = f"SELECT * FROM {sensor_type} WHERE 1=1"
     if start_date:
-        query += f" AND timestamp >= '{start_date}'"
+        try:
+            formatted_start = datetime.fromisoformat(start_date.replace('T', ' ')).strftime('%Y-%m-%d %H:%M:%S')
+            query += f" AND timestamp >= '{formatted_start}'"
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start date format")
     if end_date:
-        query += f" AND timestamp <= '{end_date}'"
+        try:
+            formatted_end = datetime.fromisoformat(end_date.replace('T', ' ')).strftime('%Y-%m-%d %H:%M:%S')
+            query += f" AND timestamp <= '{formatted_end}'"
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end date format")
     if order_by:
         if order_by not in ['value', 'timestamp']:
             raise HTTPException(status_code=400, detail="Invalid order-by parameter")
