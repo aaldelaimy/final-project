@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
@@ -6,6 +8,7 @@ from . import database
 import uvicorn
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class SensorData(BaseModel):
     value: float
@@ -20,6 +23,16 @@ class SensorDataUpdate(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     database.create_tables()
+
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    with open('static/index.html') as f:
+        return f.read()
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard():
+    with open('static/dashboard.html') as f:
+        return f.read()
 
 @app.get("/api/{sensor_type}/count")
 async def get_sensor_count(sensor_type: str):

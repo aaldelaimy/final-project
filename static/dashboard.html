@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sensor Data Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .chart-container {
+            width: 90%;
+            margin: 20px auto;
+            height: 300px;
+        }
+        .nav-link {
+            font-size: 16px;
+            color: #007bff;
+            text-decoration: none;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="nav-link">← Back to Home</a>
+    
+    <div class="chart-container">
+        <canvas id="temperatureChart"></canvas>
+    </div>
+    
+    <div class="chart-container">
+        <canvas id="humidityChart"></canvas>
+    </div>
+    
+    <div class="chart-container">
+        <canvas id="lightChart"></canvas>
+    </div>
+
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>

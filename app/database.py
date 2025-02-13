@@ -3,23 +3,34 @@ import pandas as pd
 import os
 from datetime import datetime
 import time
+from dotenv import load_dotenv
+import sys
+
+# Print current working directory
+print("Current working directory:", os.getcwd())
+
+# Load environment variables from .env file
+load_dotenv()
 
 def get_db_connection():
-    # Add retry logic
-    max_retries = 30
-    for attempt in range(max_retries):
-        try:
-            return mysql.connector.connect(
-                host=os.getenv("MYSQL_HOST"),
-                user=os.getenv("MYSQL_USER"),
-                password=os.getenv("MYSQL_PASSWORD"),
-                database=os.getenv("MYSQL_DATABASE")
-            )
-        except mysql.connector.Error:
-            if attempt < max_retries - 1:
-                time.sleep(1)  # Wait 1 second before retrying
-                continue
-            raise
+    # Debug prints
+    print("Environment variables:")
+    print("MYSQL_HOST:", os.getenv("MYSQL_HOST"))
+    print("MYSQL_USER:", os.getenv("MYSQL_USER"))
+    print("MYSQL_PASSWORD:", os.getenv("MYSQL_PASSWORD"))
+    print("MYSQL_DATABASE:", os.getenv("MYSQL_DATABASE"))
+    
+    try:
+        connection = mysql.connector.connect(
+            host=os.getenv("MYSQL_HOST"),
+            user=os.getenv("MYSQL_USER"),
+            password=os.getenv("MYSQL_PASSWORD"),
+            database=os.getenv("MYSQL_DATABASE")
+        )
+        return connection
+    except mysql.connector.Error as err:
+        print(f"Error connecting to MySQL: {err}")
+        sys.exit(1)
 
 def create_tables():
     conn = get_db_connection()
