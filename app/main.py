@@ -68,6 +68,11 @@ async def get_sensor_data(
     cursor.execute(query, params)
     result = cursor.fetchall()
     
+    # Convert timestamps to the correct format
+    for row in result:
+        if row.get('timestamp'):
+            row['timestamp'] = row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+    
     cursor.close()
     conn.close()
     return result
@@ -80,7 +85,9 @@ async def create_sensor_data(sensor_type: str, data: SensorData):
     conn = database.get_db_connection()
     cursor = conn.cursor()
     
-    timestamp = data.timestamp or datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    timestamp = data.timestamp or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if timestamp and 'T' in timestamp:
+        timestamp = timestamp.replace('T', ' ')
     
     query = f"INSERT INTO {sensor_type} (value, unit, timestamp) VALUES (%s, %s, %s)"
     cursor.execute(query, (data.value, data.unit, timestamp))
@@ -108,6 +115,10 @@ async def get_sensor_data_by_id(sensor_type: str, id: int):
         conn.close()
         raise HTTPException(status_code=404, detail="Data not found")
     
+    # Convert timestamp to the correct format
+    if result.get('timestamp'):
+        result['timestamp'] = result['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+    
     cursor.close()
     conn.close()
     return result
@@ -129,8 +140,11 @@ async def update_sensor_data(sensor_type: str, id: int, data: SensorDataUpdate):
         updates.append("unit = %s")
         values.append(data.unit)
     if data.timestamp is not None:
+        timestamp = data.timestamp
+        if 'T' in timestamp:
+            timestamp = timestamp.replace('T', ' ')
         updates.append("timestamp = %s")
-        values.append(data.timestamp)
+        values.append(timestamp)
     
     if not updates:
         raise HTTPException(status_code=400, detail="No update data provided")
