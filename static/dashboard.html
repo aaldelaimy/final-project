@@ -1,42 +1,457 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Sensor Data Dashboard</title>
+    <title>Smart Wardrobe Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
         }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .nav-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .nav-bar h1 {
+            color: #1a237e;
+            margin: 0;
+        }
+
+        .nav-links a {
+            color: #1a237e;
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #283593;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            color: #1a237e;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #283593;
+        }
+
         .chart-container {
-            width: 90%;
-            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
             height: 300px;
         }
-        .nav-link {
-            font-size: 16px;
-            color: #007bff;
-            text-decoration: none;
+
+        .device-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .device-form {
             margin-bottom: 20px;
-            display: inline-block;
+        }
+
+        input {
+            width: calc(50% - 10px);
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #1a237e;
+        }
+
+        button {
+            background: #1a237e;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #283593;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .device-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .device-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .device-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .device-card h3 {
+            color: #1a237e;
+            margin: 0;
+        }
+
+        .device-card p {
+            color: #616161;
+            margin: 5px 0 0 0;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #d32f2f;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 8px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: #ffebee;
+            transform: scale(1.1);
+        }
+
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            input {
+                width: 100%;
+                margin-right: 0;
+            }
+
+            .device-list {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <a href="/" class="nav-link">← Back to Home</a>
-    
-    <div class="chart-container">
-        <canvas id="temperatureChart"></canvas>
-    </div>
-    
-    <div class="chart-container">
-        <canvas id="humidityChart"></canvas>
-    </div>
-    
-    <div class="chart-container">
-        <canvas id="lightChart"></canvas>
+    <div class="container">
+        <div class="nav-bar">
+            <h1>Smart Wardrobe Dashboard</h1>
+            <div class="nav-links">
+                <a href="/wardrobe">Wardrobe</a>
+                <a href="#" id="logoutBtn">Logout</a>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <h3>Temperature</h3>
+                <div class="stat-value" id="currentTemp">--°C</div>
+            </div>
+            <div class="stat-card">
+                <h3>Humidity</h3>
+                <div class="stat-value" id="currentHumidity">--%</div>
+            </div>
+            <div class="stat-card">
+                <h3>Light Level</h3>
+                <div class="stat-value" id="currentLight">-- lux</div>
+            </div>
+        </div>
+
+        <div class="device-section">
+            <h2>Device Management</h2>
+            <div id="error" class="error"></div>
+            <div class="device-form">
+                <input type="text" id="deviceId" placeholder="Device ID">
+                <input type="text" id="deviceName" placeholder="Device Name">
+                <button onclick="registerDevice()">Register Device</button>
+            </div>
+            <div class="device-list" id="devicesList"></div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="temperatureChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="humidityChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="lightChart"></canvas>
+        </div>
     </div>
 
-    <script src="/static/dashboard.js"></script>
+    <script>
+        // Chart configurations
+        function createChart(ctx, label, color) {
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: label,
+                        data: [],
+                        borderColor: color,
+                        tension: 0.4,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize charts
+        const tempChart = createChart(
+            document.getElementById('temperatureChart').getContext('2d'),
+            'Temperature (°C)',
+            '#1a237e'
+        );
+        
+        const humidityChart = createChart(
+            document.getElementById('humidityChart').getContext('2d'),
+            'Humidity (%)',
+            '#283593'
+        );
+        
+        const lightChart = createChart(
+            document.getElementById('lightChart').getContext('2d'),
+            'Light Level (lux)',
+            '#3949ab'
+        );
+
+        // Device management
+        async function registerDevice() {
+            const errorDiv = document.getElementById('error');
+            errorDiv.style.display = 'none';
+
+            const deviceId = document.getElementById('deviceId').value;
+            const deviceName = document.getElementById('deviceName').value;
+
+            try {
+                const response = await fetch('/devices', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        device_id: deviceId,
+                        name: deviceName
+                    })
+                });
+
+                if (response.ok) {
+                    loadDevices();
+                    document.getElementById('deviceId').value = '';
+                    document.getElementById('deviceName').value = '';
+                } else {
+                    const error = await response.json();
+                    errorDiv.textContent = error.detail;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error registering device';
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        async function deleteDevice(deviceId) {
+            if (!confirm('Are you sure you want to remove this device?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/devices/${deviceId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadDevices(); // Refresh the device list
+                } else {
+                    const error = await response.json();
+                    alert(error.detail || 'Error deleting device');
+                }
+            } catch (error) {
+                alert('Error deleting device');
+            }
+        }
+
+        async function loadDevices() {
+            try {
+                const response = await fetch('/devices');
+                if (response.ok) {
+                    const devices = await response.json();
+                    const devicesList = document.getElementById('devicesList');
+                    devicesList.innerHTML = devices.map(device => `
+                        <div class="device-card">
+                            <div class="device-header">
+                                <h3>${device.name}</h3>
+                                <button class="delete-btn" onclick="deleteDevice('${device.device_id}')">
+                                    ×
+                                </button>
+                            </div>
+                            <p>ID: ${device.device_id}</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading devices:', error);
+            }
+        }
+
+        // Load sensor data
+        async function loadSensorData() {
+            try {
+                // Load temperature data
+                const tempResponse = await fetch('/api/temperature');
+                if (tempResponse.ok) {
+                    const tempData = await tempResponse.json();
+                    if (tempData.length > 0) {
+                        document.getElementById('currentTemp').textContent = 
+                            `${tempData[tempData.length-1].value}°C`;
+                        updateChart(tempChart, tempData);
+                    }
+                }
+
+                // Load humidity data
+                const humidityResponse = await fetch('/api/humidity');
+                if (humidityResponse.ok) {
+                    const humidityData = await humidityResponse.json();
+                    if (humidityData.length > 0) {
+                        document.getElementById('currentHumidity').textContent = 
+                            `${humidityData[humidityData.length-1].value}%`;
+                        updateChart(humidityChart, humidityData);
+                    }
+                }
+
+                // Load light data
+                const lightResponse = await fetch('/api/light');
+                if (lightResponse.ok) {
+                    const lightData = await lightResponse.json();
+                    if (lightData.length > 0) {
+                        document.getElementById('currentLight').textContent = 
+                            `${lightData[lightData.length-1].value} lux`;
+                        updateChart(lightChart, lightData);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading sensor data:', error);
+            }
+        }
+
+        function updateChart(chart, data) {
+            chart.data.labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
+            chart.data.datasets[0].data = data.map(d => d.value);
+            chart.update();
+        }
+
+        // Logout handler
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/logout', { method: 'POST' });
+                if (response.ok) {
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Error logging out:', error);
+            }
+        });
+
+        // Initial load
+        loadDevices();
+        loadSensorData();
+
+        // Refresh data every 30 seconds
+        setInterval(loadSensorData, 30000);
+    </script>
 </body>
 </html>
